@@ -79,10 +79,11 @@ export default function LoginScreen({ navigation }) {
           >
             🌿 Sky Land Promoters
           </Animatable.Text>
-
+          
+{/* 
           <GlobalText style={[styles.tagline, { color: textColor }]}>
             India’s #1 Property Booking App
-          </GlobalText>
+          </GlobalText> */}
 
           {step === 1 && (
             <Animatable.View animation="fadeInLeft" duration={600}>

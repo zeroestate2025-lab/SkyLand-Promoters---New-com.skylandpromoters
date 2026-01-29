@@ -6,10 +6,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // ⚠️ Use 10.0.2.2 for Android Emulator, localhost for iOS, or your LAN IP for real device
 const API = axios.create({
-  baseURL: "https://zero-estate-backend-render.onrender.com/api", // 👈 change this to your backend IP
+  baseURL: "http://10.75.79.163:5000/api", // 👈 change this to your backend IP
   headers: { "Content-Type": "application/json" },
 });
-// https://zero-estate-backend-render.onrender.com
+// https://zero-estate-backend-render.onrender.com/api
 // "http://172.20.10.3:5000/api"
 // 
 // ---------------- INTERCEPTORS ----------------

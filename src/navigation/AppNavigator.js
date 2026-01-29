@@ -24,6 +24,7 @@ import PrivacyPolicyScreen from "../screens/setting/PrivacyPolicyScreen";
 import SavedPropertiesScreen from "../screens/SavedProperty/SavedPropertiesScreen";
 import MessagesScreen from "../screens/MessagePage/MessagesScreen";
 import ChatScreen from "../screens/MessagePage/ChatScreen";
+import MapPickerScreen from "../screens/MapPickerScreen"; 
 
 const Stack = createNativeStackNavigator();
 
@@ -119,6 +120,7 @@ export default function AppNavigator() {
             />
             <Stack.Screen name="Messages" component={MessagesScreen} />
             <Stack.Screen name="Chat" component={ChatScreen} />
+            <Stack.Screen name="MapPicker" component={MapPickerScreen} />
           </>
         )}
       </Stack.Navigator>
