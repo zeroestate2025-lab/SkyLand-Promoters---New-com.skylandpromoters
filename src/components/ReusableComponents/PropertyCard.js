@@ -189,7 +189,7 @@ export default function PropertyCard({ item, onPress, onToggleSave }) {
             )}
           </View>
 
-          {item?.category?.toLowerCase() === "house" && (
+          {/* {item?.category?.toLowerCase() === "house" && (
             <View
               style={[
                 styles.featuresRow,
@@ -221,7 +221,7 @@ export default function PropertyCard({ item, onPress, onToggleSave }) {
                 </GlobalText>
               </View>
             </View>
-          )}
+          )} */}
         </View>
       </TouchableOpacity>
     </Animatable.View>

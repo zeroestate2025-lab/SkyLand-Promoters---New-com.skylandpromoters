@@ -229,13 +229,13 @@ export default function PropertyDetailsScreen({ route, navigation }) {
               <View style={styles.featureBox}>
                 <Bed size={18} color="#FF6B6B" />
                 <GlobalText style={styles.featureText}>
-                  {property.bedrooms ? `${property.bedrooms} Beds` : "N/A Beds"}
+                  {property.bedrooms ? `${property.bedrooms} Bedroom` : "N/A Beds"}
                 </GlobalText>
               </View>
               <View style={styles.featureBox}>
                 <Bath size={18} color="#3AAFA9" />
                 <GlobalText style={styles.featureText}>
-                  {property.bathrooms ? `${property.bathrooms} Baths` : "N/A Baths"}
+                  {property.bathrooms ? `${property.bathrooms} Bathroom` : "N/A Baths"}
                 </GlobalText>
               </View>
               <View style={styles.featureBox}>
