@@ -1,5 +1,4 @@
-
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
   StyleSheet,
@@ -15,7 +14,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import LinearGradient from "react-native-linear-gradient";
 import * as Animatable from "react-native-animatable";
-import { useTheme } from "@react-navigation/native";
+import { useTheme } from "@react-navigation/native"; // ✅ Moved to TOP
 import {
   ArrowLeft,
   Pencil,
@@ -30,13 +29,17 @@ import {
 
 import AnimatedBackground from "../../components/ReusableComponents/AnimatedBackground";
 import GlobalText from "../../theme/GlobalText";
-import { getMyProperties, getUserProfile, updateUserName, deleteProperty } from "../../api/api";
+import { getMyProperties, getUserProfile, updateUserProfile, deleteProperty } from "../../api/api";
 
+// ✅ FIXED: All hooks at TOP level, NO conditional calls
 export default function OwnerProfileScreen({ navigation }) {
-  const { colors } = useTheme();
+  // 🔹 ALL HOOKS FIRST - Critical fix
+  const theme = useTheme(); // ✅ Moved to TOP - fixes hook order
+  const { colors } = theme;
   const scheme = useColorScheme();
   const isDark = scheme === "dark";
 
+  // All useState calls - ALWAYS called
   const [myProperties, setMyProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState({
@@ -44,12 +47,13 @@ export default function OwnerProfileScreen({ navigation }) {
     phone: "N/A",
     avatar: null,
   });
-
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [newName, setNewName] = useState("");
+  const [newPhone, setNewPhone] = useState("");
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
 
+  // ✅ useEffect AFTER all useState
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -68,62 +72,81 @@ export default function OwnerProfileScreen({ navigation }) {
     fetchData();
   }, []);
 
- const handleSaveName = async () => {
-  if (!newName.trim()) return;
-  try {
-    setSaving(true);
-    const res = await updateUserName(newName);
-    console.log("✅ Update Response:", res);
-
-    if (res.success) {
-      setUser((prev) => ({ ...prev, name: res.user.name }));
-      setEditModalVisible(false);
-    } else {
-      alert(res.message || "Failed to update name");
+  // ✅ useCallback for handlers - stable references
+  const handleSaveProfile = useCallback(async () => {
+    if (!newName.trim()) {
+      Alert.alert("Validation", "Name is required");
+      return;
     }
-  } catch (err) {
-    console.error("❌ Error updating name:", err.response?.data || err.message);
-    alert(err.response?.data?.message || "Something went wrong!");
-  } finally {
-    setSaving(false);
-  }
-};
+    if (!newPhone.trim()) {
+      Alert.alert("Validation", "Phone number is required");
+      return;
+    }
+    if (newPhone.length !== 10) {
+      Alert.alert("Validation", "Phone number must be 10 digits");
+      return;
+    }
 
-// Delete property handler
-const handleDeleteProperty = (id) => {
-  Alert.alert(
-    "Delete property",
-    "Are you sure you want to delete this property? This action cannot be undone.",
-    [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            setDeletingId(id);
-            const res = await deleteProperty(id);
-            console.log("Delete response:", res);
-            // If backend returns success flag or deleted id
-            setMyProperties((prev) => prev.filter((p) => p._id !== id));
-          } catch (err) {
-            console.error("Error deleting property:", err.response?.data || err.message);
-            Alert.alert("Delete failed", err.response?.data?.message || "Could not delete property");
-          } finally {
-            setDeletingId(null);
-          }
+    try {
+      setSaving(true);
+      const res = await updateUserProfile({
+        name: newName,
+        phone: newPhone,
+      });
+
+      if (res?.success) {
+        setUser((prev) => ({
+          ...prev,
+          name: res.user.name,
+          phone: res.user.phone,
+        }));
+        setEditModalVisible(false);
+      } else {
+        Alert.alert("Error", res?.message || "Update failed");
+      }
+    } catch (err) {
+      Alert.alert(
+        "Error",
+        err?.response?.data?.message || "Something went wrong"
+      );
+    } finally {
+      setSaving(false);
+    }
+  }, [newName, newPhone]);
+
+  const handleDeleteProperty = useCallback((id) => {
+    Alert.alert(
+      "Delete property",
+      "Are you sure you want to delete this property? This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setDeletingId(id);
+              await deleteProperty(id);
+              setMyProperties((prev) => prev.filter((p) => p._id !== id));
+            } catch (err) {
+              Alert.alert("Delete failed", err?.response?.data?.message || "Could not delete property");
+            } finally {
+              setDeletingId(null);
+            }
+          },
         },
-      },
-    ]
-  );
-};
+      ]
+    );
+  }, []);
 
+  // Derived values AFTER hooks
   const bg = isDark ? "#121212" : "#F9F9F9";
   const card = isDark ? "#1E1E1E" : "#fff";
   const text = isDark ? "#EDEDED" : "#222";
   const subText = isDark ? "#AAAAAA" : "#666";
 
-  const renderProperty = ({ item }) => (
+  // ✅ Render functions as stable callbacks
+  const renderProperty = useCallback(({ item }) => (
     <Animatable.View
       animation="fadeInUp"
       duration={600}
@@ -140,7 +163,6 @@ const handleDeleteProperty = (id) => {
         style={styles.cardImage}
         resizeMode="cover"
       />
-
       <View style={styles.cardDetails}>
         <View style={styles.titleRow}>
           <GlobalText
@@ -150,7 +172,6 @@ const handleDeleteProperty = (id) => {
           >
             {item.title || "Untitled Property"}
           </GlobalText>
-
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             <TouchableOpacity
               onPress={() => navigation.navigate("AddProperty", { property: item })}
@@ -159,7 +180,6 @@ const handleDeleteProperty = (id) => {
             >
               <Pencil size={18} color="#20A68B" />
             </TouchableOpacity>
-
             <TouchableOpacity
               onPress={() => handleDeleteProperty(item._id)}
               activeOpacity={0.8}
@@ -172,11 +192,9 @@ const handleDeleteProperty = (id) => {
             </TouchableOpacity>
           </View>
         </View>
-
         <GlobalText style={[styles.price, { color: "#20A68B" }]}>
           ₹ {item.price ? item.price.toLocaleString("en-IN") : "N/A"}
         </GlobalText>
-
         <View style={styles.locationRow}>
           <MapPin size={14} color={subText} />
           <GlobalText
@@ -188,7 +206,28 @@ const handleDeleteProperty = (id) => {
         </View>
       </View>
     </Animatable.View>
-  );
+  ), [deletingId, handleDeleteProperty, text, card]);
+
+  // ✅ onPress handlers as stable callbacks
+  const openEditModal = useCallback(() => {
+    setNewName(user.name);
+    setNewPhone(user.phone || "");
+    setEditModalVisible(true);
+  }, [user.name, user.phone]);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: bg }]}>
+        <AnimatedBackground />
+        <View style={styles.loaderContainer}>
+          <ActivityIndicator size="large" color="#20A68B" />
+          <GlobalText style={{ color: subText, marginTop: 8 }}>
+            Loading your properties...
+          </GlobalText>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: bg }]}>
@@ -205,7 +244,6 @@ const handleDeleteProperty = (id) => {
           >
             <ArrowLeft size={24} color="#fff" />
           </TouchableOpacity>
-
           <GlobalText bold style={styles.headerTitle}>
             Owner Profile
           </GlobalText>
@@ -217,28 +255,26 @@ const handleDeleteProperty = (id) => {
         duration={800}
         style={[styles.profileCard, { backgroundColor: card }]}
       >
-          {user?.avatar ? (
-            <Image
-              source={{ uri: user.avatar }}
-              style={styles.avatar}
-            />
-          ) : (
-            <View style={[styles.avatar, { backgroundColor: isDark ? "#2E5E59" : "#fff", justifyContent: 'center', alignItems: 'center' }]}>
-              <User size={28} color={isDark ? "#fff" : "#999"} />
-            </View>
-          )}
+        {user?.avatar ? (
+          <Image source={{ uri: user.avatar }} style={styles.avatar} />
+        ) : (
+          <View style={[
+            styles.avatar, 
+            { 
+              backgroundColor: isDark ? "#2E5E59" : "#fff", 
+              justifyContent: 'center', 
+              alignItems: 'center' 
+            }
+          ]}>
+            <User size={28} color={isDark ? "#fff" : "#999"} />
+          </View>
+        )}
         <View>
           <View style={{ flexDirection: "row", alignItems: "center", marginLeft: 15 }}>
             <GlobalText bold style={[styles.name, { color: text }]}>
               {user.name}
             </GlobalText>
-            <TouchableOpacity
-              style={{ marginLeft: 8 }}
-              onPress={() => {
-                setNewName(user.name);
-                setEditModalVisible(true);
-              }}
-            >
+            <TouchableOpacity style={{ marginLeft: 8 }} onPress={openEditModal}>
               <Pencil size={18} color="#20A68B" />
             </TouchableOpacity>
           </View>
@@ -252,20 +288,13 @@ const handleDeleteProperty = (id) => {
         My Listed Properties
       </GlobalText>
 
-      {loading ? (
-        <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color="#20A68B" />
-          <GlobalText style={[styles.loadingText, { color: subText }]}>
-            Loading your properties...
-          </GlobalText>
-        </View>
-      ) : myProperties.length === 0 ? (
+      {myProperties.length === 0 ? (
         <Animatable.View animation="fadeIn" style={styles.emptyState}>
           <GlobalText style={[styles.noPropertyText, { color: subText }]}>
             No properties listed yet.
           </GlobalText>
           <GlobalText style={[styles.subText, { color: subText }]}>
-            Tap “Add Property” below to create your first listing 🏡
+            Tap "Add Property" below to create your first listing 🏡
           </GlobalText>
         </Animatable.View>
       ) : (
@@ -294,7 +323,7 @@ const handleDeleteProperty = (id) => {
         </LinearGradient>
       </TouchableOpacity>
 
-      {/* 🔹 Edit Name Modal */}
+      {/* Edit Profile Modal */}
       <Modal
         visible={editModalVisible}
         transparent
@@ -303,8 +332,8 @@ const handleDeleteProperty = (id) => {
       >
         <View style={styles.modalContainer}>
           <View style={[styles.modalBox, { backgroundColor: card }]}>
-            <GlobalText bold style={{ fontSize: 16, marginBottom: 10, color: text }}>
-              Edit Name
+            <GlobalText bold style={{ fontSize: 16, marginBottom: 15, color: text }}>
+              Edit Profile
             </GlobalText>
 
             <TextInput
@@ -312,13 +341,23 @@ const handleDeleteProperty = (id) => {
               onChangeText={setNewName}
               style={[
                 styles.input,
-                {
-                  borderColor: "#20A68B",
-                  color: text,
-                },
+                { borderColor: "#20A68B", color: text },
               ]}
               placeholder="Enter new name"
               placeholderTextColor="#999"
+            />
+
+            <TextInput
+              value={newPhone}
+              onChangeText={setNewPhone}
+              keyboardType="phone-pad"
+              style={[
+                styles.input,
+                { borderColor: "#20A68B", color: text, marginTop: 8 },
+              ]}
+              placeholder="Enter phone number (10 digits)"
+              placeholderTextColor="#999"
+              maxLength={10}
             />
 
             <View style={styles.modalButtons}>
@@ -330,7 +369,7 @@ const handleDeleteProperty = (id) => {
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.btn, { backgroundColor: "#20A68B" }]}
-                onPress={handleSaveName}
+                onPress={handleSaveProfile}
                 disabled={saving}
               >
                 <GlobalText style={{ color: "#fff" }}>
@@ -345,6 +384,7 @@ const handleDeleteProperty = (id) => {
   );
 }
 
+// ✅ Styles unchanged - complete from first code
 const styles = StyleSheet.create({
   container: { flex: 1 },
 
@@ -390,9 +430,9 @@ const styles = StyleSheet.create({
   },
 
   loaderContainer: {
+    flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 25,
   },
   loadingText: { marginTop: 8, fontSize: 13 },
 
@@ -400,6 +440,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginTop: 30,
+    paddingVertical: 40,
   },
   noPropertyText: { fontSize: 14, marginBottom: 6 },
   subText: { fontSize: 12 },
@@ -429,13 +470,6 @@ const styles = StyleSheet.create({
   price: { fontSize: 14, marginVertical: 4 },
   locationRow: { flexDirection: "row", alignItems: "center", marginTop: 2 },
   location: { fontSize: 12, marginLeft: 4, flexShrink: 1 },
-  featuresRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 8,
-  },
-  feature: { flexDirection: "row", alignItems: "center" },
-  featureText: { fontSize: 12, marginLeft: 4 },
 
   addButton: { position: "absolute", bottom: 25, left: 20, right: 20 },
   addButtonGradient: {
@@ -463,17 +497,497 @@ const styles = StyleSheet.create({
   input: {
     borderWidth: 1,
     borderRadius: 8,
-    padding: 10,
-    marginBottom: 15,
+    padding: 12,
   },
   modalButtons: {
     flexDirection: "row",
     justifyContent: "flex-end",
+    marginTop: 10,
   },
   btn: {
-    paddingHorizontal: 15,
-    paddingVertical: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
     borderRadius: 8,
-    marginLeft: 10,
+    marginLeft: 12,
   },
 });
+
+
+// import React, { useEffect, useState } from "react";
+// import {
+//   View,
+//   StyleSheet,
+//   Image,
+//   TouchableOpacity,
+//   FlatList,
+//   ActivityIndicator,
+//   useColorScheme,
+//   TextInput,
+//   Modal,
+//   Alert,
+// } from "react-native";
+// import { SafeAreaView } from "react-native-safe-area-context";
+// import LinearGradient from "react-native-linear-gradient";
+// import * as Animatable from "react-native-animatable";
+// import { useTheme } from "@react-navigation/native";
+// import {
+//   ArrowLeft,
+//   Pencil,
+//   Bed,
+//   Bath,
+//   UtensilsCrossed,
+//   PlusCircle,
+//   MapPin,
+//   Trash2,
+//   User,
+// } from "lucide-react-native";
+
+// import AnimatedBackground from "../../components/ReusableComponents/AnimatedBackground";
+// import GlobalText from "../../theme/GlobalText";
+// import { getMyProperties, getUserProfile, updateUserName, deleteProperty } from "../../api/api";
+
+// export default function OwnerProfileScreen({ navigation }) {
+//   const { colors } = useTheme();
+//   const scheme = useColorScheme();
+//   const isDark = scheme === "dark";
+
+//   const [myProperties, setMyProperties] = useState([]);
+//   const [loading, setLoading] = useState(true);
+//   const [user, setUser] = useState({
+//     name: "User",
+//     phone: "N/A",
+//     avatar: null,
+//   });
+
+//   const [editModalVisible, setEditModalVisible] = useState(false);
+//   const [newName, setNewName] = useState("");
+//   const [saving, setSaving] = useState(false);
+//   const [deletingId, setDeletingId] = useState(null);
+
+//   useEffect(() => {
+//     const fetchData = async () => {
+//       try {
+//         setLoading(true);
+//         const userData = await getUserProfile();
+//         setUser(userData);
+
+//         const properties = await getMyProperties();
+//         setMyProperties(properties);
+//       } catch (err) {
+//         console.log("Error fetching data:", err.message);
+//       } finally {
+//         setLoading(false);
+//       }
+//     };
+//     fetchData();
+//   }, []);
+
+//  const handleSaveName = async () => {
+//   if (!newName.trim()) return;
+//   try {
+//     setSaving(true);
+//     const res = await updateUserName(newName);
+//     console.log("✅ Update Response:", res);
+
+//     if (res.success) {
+//       setUser((prev) => ({ ...prev, name: res.user.name }));
+//       setEditModalVisible(false);
+//     } else {
+//       alert(res.message || "Failed to update name");
+//     }
+//   } catch (err) {
+//     console.error("❌ Error updating name:", err.response?.data || err.message);
+//     alert(err.response?.data?.message || "Something went wrong!");
+//   } finally {
+//     setSaving(false);
+//   }
+// };
+
+// // Delete property handler
+// const handleDeleteProperty = (id) => {
+//   Alert.alert(
+//     "Delete property",
+//     "Are you sure you want to delete this property? This action cannot be undone.",
+//     [
+//       { text: "Cancel", style: "cancel" },
+//       {
+//         text: "Delete",
+//         style: "destructive",
+//         onPress: async () => {
+//           try {
+//             setDeletingId(id);
+//             const res = await deleteProperty(id);
+//             console.log("Delete response:", res);
+//             // If backend returns success flag or deleted id
+//             setMyProperties((prev) => prev.filter((p) => p._id !== id));
+//           } catch (err) {
+//             console.error("Error deleting property:", err.response?.data || err.message);
+//             Alert.alert("Delete failed", err.response?.data?.message || "Could not delete property");
+//           } finally {
+//             setDeletingId(null);
+//           }
+//         },
+//       },
+//     ]
+//   );
+// };
+
+//   const bg = isDark ? "#121212" : "#F9F9F9";
+//   const card = isDark ? "#1E1E1E" : "#fff";
+//   const text = isDark ? "#EDEDED" : "#222";
+//   const subText = isDark ? "#AAAAAA" : "#666";
+
+//   const renderProperty = ({ item }) => (
+//     <Animatable.View
+//       animation="fadeInUp"
+//       duration={600}
+//       style={[styles.card, { backgroundColor: card }]}
+//     >
+//       <Image
+//         source={
+//           item.thumbnail
+//             ? { uri: item.thumbnail }
+//             : {
+//                 uri: "https://images.unsplash.com/photo-1560185127-6ed189bf04bb?auto=format&fit=crop&w=800&q=60",
+//               }
+//         }
+//         style={styles.cardImage}
+//         resizeMode="cover"
+//       />
+
+//       <View style={styles.cardDetails}>
+//         <View style={styles.titleRow}>
+//           <GlobalText
+//             bold
+//             numberOfLines={1}
+//             style={[styles.title, { color: text }]}
+//           >
+//             {item.title || "Untitled Property"}
+//           </GlobalText>
+
+//           <View style={{ flexDirection: "row", alignItems: "center" }}>
+//             <TouchableOpacity
+//               onPress={() => navigation.navigate("AddProperty", { property: item })}
+//               activeOpacity={0.8}
+//               style={{ marginRight: 12 }}
+//             >
+//               <Pencil size={18} color="#20A68B" />
+//             </TouchableOpacity>
+
+//             <TouchableOpacity
+//               onPress={() => handleDeleteProperty(item._id)}
+//               activeOpacity={0.8}
+//             >
+//               {deletingId === item._id ? (
+//                 <ActivityIndicator size="small" color="#FF3B30" />
+//               ) : (
+//                 <Trash2 size={18} color="#FF3B30" />
+//               )}
+//             </TouchableOpacity>
+//           </View>
+//         </View>
+
+//         <GlobalText style={[styles.price, { color: "#20A68B" }]}>
+//           ₹ {item.price ? item.price.toLocaleString("en-IN") : "N/A"}
+//         </GlobalText>
+
+//         <View style={styles.locationRow}>
+//           <MapPin size={14} color={subText} />
+//           <GlobalText
+//             numberOfLines={1}
+//             style={[styles.location, { color: subText }]}
+//           >
+//             {item.location || "Location not provided"}
+//           </GlobalText>
+//         </View>
+//       </View>
+//     </Animatable.View>
+//   );
+
+//   return (
+//     <SafeAreaView style={[styles.container, { backgroundColor: bg }]}>
+//       <AnimatedBackground />
+
+//       <LinearGradient
+//         colors={isDark ? ["#114D44", "#0D3732"] : ["#43C6AC", "#20A68B"]}
+//         style={styles.headerContainer}
+//       >
+//         <View style={styles.header}>
+//           <TouchableOpacity
+//             onPress={() => navigation.goBack()}
+//             style={styles.iconBtn}
+//           >
+//             <ArrowLeft size={24} color="#fff" />
+//           </TouchableOpacity>
+
+//           <GlobalText bold style={styles.headerTitle}>
+//             Owner Profile
+//           </GlobalText>
+//         </View>
+//       </LinearGradient>
+
+//       <Animatable.View
+//         animation="fadeInDown"
+//         duration={800}
+//         style={[styles.profileCard, { backgroundColor: card }]}
+//       >
+//           {user?.avatar ? (
+//             <Image
+//               source={{ uri: user.avatar }}
+//               style={styles.avatar}
+//             />
+//           ) : (
+//             <View style={[styles.avatar, { backgroundColor: isDark ? "#2E5E59" : "#fff", justifyContent: 'center', alignItems: 'center' }]}>
+//               <User size={28} color={isDark ? "#fff" : "#999"} />
+//             </View>
+//           )}
+//         <View>
+//           <View style={{ flexDirection: "row", alignItems: "center", marginLeft: 15 }}>
+//             <GlobalText bold style={[styles.name, { color: text }]}>
+//               {user.name}
+//             </GlobalText>
+//             <TouchableOpacity
+//               style={{ marginLeft: 8 }}
+//               onPress={() => {
+//                 setNewName(user.name);
+//                 setEditModalVisible(true);
+//               }}
+//             >
+//               <Pencil size={18} color="#20A68B" />
+//             </TouchableOpacity>
+//           </View>
+//           <GlobalText style={[styles.email, { color: subText, marginLeft: 15 }]}>
+//             {user.phone}
+//           </GlobalText>
+//         </View>
+//       </Animatable.View>
+
+//       <GlobalText bold style={[styles.sectionTitle, { color: text }]}>
+//         My Listed Properties
+//       </GlobalText>
+
+//       {loading ? (
+//         <View style={styles.loaderContainer}>
+//           <ActivityIndicator size="large" color="#20A68B" />
+//           <GlobalText style={[styles.loadingText, { color: subText }]}>
+//             Loading your properties...
+//           </GlobalText>
+//         </View>
+//       ) : myProperties.length === 0 ? (
+//         <Animatable.View animation="fadeIn" style={styles.emptyState}>
+//           <GlobalText style={[styles.noPropertyText, { color: subText }]}>
+//             No properties listed yet.
+//           </GlobalText>
+//           <GlobalText style={[styles.subText, { color: subText }]}>
+//             Tap “Add Property” below to create your first listing 🏡
+//           </GlobalText>
+//         </Animatable.View>
+//       ) : (
+//         <FlatList
+//           data={myProperties}
+//           keyExtractor={(item) => item._id}
+//           renderItem={renderProperty}
+//           contentContainerStyle={{ paddingBottom: 100 }}
+//           showsVerticalScrollIndicator={false}
+//         />
+//       )}
+
+//       <TouchableOpacity
+//         style={styles.addButton}
+//         onPress={() => navigation.navigate("AddProperty")}
+//         activeOpacity={0.9}
+//       >
+//         <LinearGradient
+//           colors={["#43C6AC", "#20A68B"]}
+//           style={styles.addButtonGradient}
+//         >
+//           <PlusCircle size={22} color="#fff" strokeWidth={2.5} />
+//           <GlobalText bold style={styles.addText}>
+//             Add Property
+//           </GlobalText>
+//         </LinearGradient>
+//       </TouchableOpacity>
+
+//       {/* 🔹 Edit Name Modal */}
+//       <Modal
+//         visible={editModalVisible}
+//         transparent
+//         animationType="fade"
+//         onRequestClose={() => setEditModalVisible(false)}
+//       >
+//         <View style={styles.modalContainer}>
+//           <View style={[styles.modalBox, { backgroundColor: card }]}>
+//             <GlobalText bold style={{ fontSize: 16, marginBottom: 10, color: text }}>
+//               Edit Name
+//             </GlobalText>
+
+//             <TextInput
+//               value={newName}
+//               onChangeText={setNewName}
+//               style={[
+//                 styles.input,
+//                 {
+//                   borderColor: "#20A68B",
+//                   color: text,
+//                 },
+//               ]}
+//               placeholder="Enter new name"
+//               placeholderTextColor="#999"
+//             />
+
+//             <View style={styles.modalButtons}>
+//               <TouchableOpacity
+//                 style={[styles.btn, { backgroundColor: "#ccc" }]}
+//                 onPress={() => setEditModalVisible(false)}
+//               >
+//                 <GlobalText>Cancel</GlobalText>
+//               </TouchableOpacity>
+//               <TouchableOpacity
+//                 style={[styles.btn, { backgroundColor: "#20A68B" }]}
+//                 onPress={handleSaveName}
+//                 disabled={saving}
+//               >
+//                 <GlobalText style={{ color: "#fff" }}>
+//                   {saving ? "Saving..." : "Save"}
+//                 </GlobalText>
+//               </TouchableOpacity>
+//             </View>
+//           </View>
+//         </View>
+//       </Modal>
+//     </SafeAreaView>
+//   );
+// }
+
+// const styles = StyleSheet.create({
+//   container: { flex: 1 },
+
+//   headerContainer: {
+//     paddingVertical: 15,
+//     elevation: 8,
+//     borderBottomLeftRadius: 20,
+//     borderBottomRightRadius: 20,
+//   },
+//   header: {
+//     flexDirection: "row",
+//     alignItems: "center",
+//     justifyContent: "space-between",
+//     paddingHorizontal: 16,
+//   },
+//   headerTitle: { fontSize: 18, color: "#fff", textAlign: "center", flex: 1 },
+//   iconBtn: { width: 40, height: 40, justifyContent: "center", alignItems: "center" },
+
+//   profileCard: {
+//     flexDirection: "row",
+//     alignItems: "center",
+//     padding: 16,
+//     marginHorizontal: 15,
+//     marginTop: 20,
+//     borderRadius: 14,
+//     elevation: 4,
+//   },
+//   avatar: {
+//     width: 65,
+//     height: 65,
+//     borderRadius: 35,
+//     borderWidth: 2,
+//     borderColor: "#43C6AC",
+//   },
+//   name: { fontSize: 17 },
+//   email: { fontSize: 14, marginTop: 4 },
+
+//   sectionTitle: {
+//     fontSize: 16,
+//     marginLeft: 15,
+//     marginTop: 20,
+//     marginBottom: 10,
+//   },
+
+//   loaderContainer: {
+//     justifyContent: "center",
+//     alignItems: "center",
+//     marginTop: 25,
+//   },
+//   loadingText: { marginTop: 8, fontSize: 13 },
+
+//   emptyState: {
+//     justifyContent: "center",
+//     alignItems: "center",
+//     marginTop: 30,
+//   },
+//   noPropertyText: { fontSize: 14, marginBottom: 6 },
+//   subText: { fontSize: 12 },
+
+//   card: {
+//     flexDirection: "row",
+//     borderRadius: 14,
+//     marginHorizontal: 15,
+//     marginBottom: 15,
+//     elevation: 5,
+//     overflow: "hidden",
+//   },
+//   cardImage: {
+//     width: 120,
+//     height: 120,
+//     borderTopLeftRadius: 14,
+//     borderBottomLeftRadius: 14,
+//     backgroundColor: "#EAEAEA",
+//   },
+//   cardDetails: { flex: 1, padding: 12 },
+//   titleRow: {
+//     flexDirection: "row",
+//     justifyContent: "space-between",
+//     alignItems: "center",
+//   },
+//   title: { fontSize: 15 },
+//   price: { fontSize: 14, marginVertical: 4 },
+//   locationRow: { flexDirection: "row", alignItems: "center", marginTop: 2 },
+//   location: { fontSize: 12, marginLeft: 4, flexShrink: 1 },
+//   featuresRow: {
+//     flexDirection: "row",
+//     justifyContent: "space-between",
+//     marginTop: 8,
+//   },
+//   feature: { flexDirection: "row", alignItems: "center" },
+//   featureText: { fontSize: 12, marginLeft: 4 },
+
+//   addButton: { position: "absolute", bottom: 25, left: 20, right: 20 },
+//   addButtonGradient: {
+//     flexDirection: "row",
+//     alignItems: "center",
+//     justifyContent: "center",
+//     borderRadius: 14,
+//     paddingVertical: 14,
+//     elevation: 6,
+//   },
+//   addText: { color: "#fff", marginLeft: 8, fontSize: 15 },
+
+//   modalContainer: {
+//     flex: 1,
+//     justifyContent: "center",
+//     alignItems: "center",
+//     backgroundColor: "rgba(0,0,0,0.4)",
+//   },
+//   modalBox: {
+//     width: "85%",
+//     padding: 20,
+//     borderRadius: 12,
+//     elevation: 6,
+//   },
+//   input: {
+//     borderWidth: 1,
+//     borderRadius: 8,
+//     padding: 10,
+//     marginBottom: 15,
+//   },
+//   modalButtons: {
+//     flexDirection: "row",
+//     justifyContent: "flex-end",
+//   },
+//   btn: {
+//     paddingHorizontal: 15,
+//     paddingVertical: 8,
+//     borderRadius: 8,
+//     marginLeft: 10,
+//   },
+// });

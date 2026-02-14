@@ -6,12 +6,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // ⚠️ Use 10.0.2.2 for Android Emulator, localhost for iOS, or your LAN IP for real device
 const API = axios.create({
-  baseURL: "https://zero-estate-backend-render.onrender.com/api", // 👈 change this to your backend IP
+  baseURL: "http://10.198.127.163:5000/api", // 👈 change this to your backend IP
   headers: { "Content-Type": "application/json" },
 });
 // https://zero-estate-backend-render.onrender.com/api
-// "http://172.20.10.3:5000/api"
-// 
+// "http://10.198.127.163:5000/api"
+// 10.198.127.163
 // ---------------- INTERCEPTORS ----------------
 // 🔹 Attach token automatically before requests
 API.interceptors.request.use(async (config) => {
@@ -187,8 +187,9 @@ export const getMyProperties = async () => {
 // };
 
 
-// Update user name
-export const updateUserName = async (newName) => {
-  const { data } = await API.put("/auth/update-name", { name: newName });
+// Update user profile (name + phone)
+export const updateUserProfile = async (profileData) => {
+  const { data } = await API.put("/auth/update-profile", profileData);
   return data;
-};
+}; 
+
