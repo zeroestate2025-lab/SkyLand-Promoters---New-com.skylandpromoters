@@ -59,36 +59,3 @@ const styles = StyleSheet.create({
   },
 });
 
-// import React from "react";
-// import { View, StyleSheet } from "react-native";
-// import Icon from "react-native-vector-icons/MaterialCommunityIcons";
-// import GlobalText from "../../theme/GlobalText"; // 👈 Import global text component
-// import { useTheme } from "@react-navigation/native";
-
-// export default function CategoryCard({ icon, name }) {
-//   const { colors } = useTheme();
-
-//   return (
-//     <View style={[styles.card, { backgroundColor: colors.card }]}>
-//       <Icon name={icon} size={28} color={colors.primary || "#4CAF50"} />
-//       <GlobalText style={[styles.text, { color: colors.text }]}>{name}</GlobalText>
-//     </View>
-//   );
-// }
-
-// const styles = StyleSheet.create({
-//   card: {
-//     padding: 15,
-//     marginHorizontal: 10,
-//     borderRadius: 15,
-//     alignItems: "center",
-//     elevation: 2,
-//     shadowColor: "#000",
-//     shadowOpacity: 0.05,
-//     shadowRadius: 3,
-//   },
-//   text: {
-//     fontSize: 12,
-//     marginTop: 5,
-//   },
-// });

@@ -9,12 +9,3 @@ export default [
   { id: 7, name: "Factory", icon: "factory" },
 ];
 
-// export default [
-//   { label: "House", value: "House" },
-//   { label: "Apartment", value: "Apartment" },
-//   { label: "Office", value: "Office" },
-//   { label: "Land", value: "Land" },
-//   { label: "Sites", value: "Sites" },
-//   { label: "Godown", value: "Godown" },
-//   { label: "Factory", value: "Factory" },
-// ];   
